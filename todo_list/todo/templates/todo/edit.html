@@ -1,0 +1,41 @@
+{% extends 'todo/base.html' %}
+
+{% block content %}
+<header>
+    <h1>编辑任务</h1>
+</header>
+
+<form method="POST" class="edit-form">
+    {% csrf_token %}
+    <div class="form-group">
+        <label>标题</label>
+        <input type="text" name="title" value="{{ todo.title }}" required maxlength="200" placeholder="任务标题">
+    </div>
+    <div class="form-group">
+        <label>类型</label>
+        <select name="category">
+            {% for value, label in categories %}
+            <option value="{{ value }}" {% if todo.category == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="form-group">
+        <label>截止日期</label>
+        <input type="date" name="due_date" value="{{ todo.due_date|date:'Y-m-d' }}">
+    </div>
+    <div class="form-group">
+        <label>标签</label>
+        <input type="text" name="tags" value="{{ todo.tags }}" placeholder="用逗号分隔多个标签">
+    </div>
+    <div class="form-group">
+        <label>
+            <input type="checkbox" name="completed" {% if todo.completed %}checked{% endif %}>
+            已完成
+        </label>
+    </div>
+    <div class="form-actions">
+        <button type="submit" class="btn-save">💾 保存</button>
+        <a href="{% url 'list' %}" class="btn-cancel">取消</a>
+    </div>
+</form>
+{% endblock %}

@@ -1,0 +1,139 @@
+{% extends 'todo/base.html' %}
+
+{% block content %}
+<header>
+    <h1>待办事项</h1>
+    <div class="stats">
+        <div class="stat-card total">
+            <span class="stat-number">{{ total }}</span>
+            <span class="stat-label">全部</span>
+        </div>
+        <div class="stat-card active">
+            <span class="stat-number">{{ active }}</span>
+            <span class="stat-label">进行中</span>
+        </div>
+        <div class="stat-card completed">
+            <span class="stat-number">{{ completed }}</span>
+            <span class="stat-label">已完成</span>
+        </div>
+    </div>
+</header>
+
+<div class="search-bar">
+    <input type="text" id="searchInput" placeholder="搜索任务..." autocomplete="off">
+</div>
+
+<div class="filters">
+    <div class="filter-group">
+        <a href="?filter=all{% if filter_category %}&category={{ filter_category }}{% endif %}"
+           class="{% if filter_status == 'all' %}active{% endif %}">全部</a>
+        <a href="?filter=active{% if filter_category %}&category={{ filter_category }}{% endif %}"
+           class="{% if filter_status == 'active' %}active{% endif %}">进行中</a>
+        <a href="?filter=completed{% if filter_category %}&category={{ filter_category }}{% endif %}"
+           class="{% if filter_status == 'completed' %}active{% endif %}">已完成</a>
+    </div>
+    <span class="filter-separator"></span>
+    <div class="filter-group">
+        <a href="?filter={{ filter_status }}"
+           class="{% if not filter_category %}active{% endif %}">全部分类</a>
+        {% for value, label in categories %}
+        <a href="?filter={{ filter_status }}&category={{ value }}"
+           class="{% if filter_category == value %}active{% endif %}">{{ label }}</a>
+        {% endfor %}
+    </div>
+</div>
+
+<form method="POST" action="{% url 'add' %}" class="add-form">
+    {% csrf_token %}
+    <div class="form-row">
+        <input type="text" name="title" placeholder="✏️  添加新任务..." required maxlength="200" class="input-title">
+        <select name="category" class="input-category">
+            {% for value, label in categories %}
+            <option value="{{ value }}">{{ label }}</option>
+            {% endfor %}
+        </select>
+        <input type="date" name="due_date" class="input-date">
+        <input type="text" name="tags" placeholder="标签" class="input-tags">
+        <button type="submit" class="btn-add">添加</button>
+    </div>
+</form>
+
+<ul class="todo-list">
+    {% for todo in todos %}
+    <li class="todo-item {% if todo.completed %}completed{% endif %}" data-title="{{ todo.title|lower }}" data-tags="{{ todo.tags|lower }}">
+        <form method="POST" action="{% url 'toggle' todo.pk %}" class="toggle-form">
+            {% csrf_token %}
+            <input type="checkbox" onchange="this.form.submit()" {% if todo.completed %}checked{% endif %}>
+        </form>
+        <div class="todo-body">
+            <span class="todo-title">{{ todo.title }}</span>
+            <div class="todo-meta">
+                <span class="badge badge-{{ todo.category }}">{{ todo.get_category_display }}</span>
+                {% if todo.due_date %}
+                <span class="due-date {% if todo.due_date < today %}overdue{% elif todo.due_date == today %}today{% endif %}">
+                    📅 {{ todo.due_date|date:"Y-m-d" }}
+                    {% if todo.due_date < today %}已过期{% elif todo.due_date == today %}今天{% endif %}
+                </span>
+                {% endif %}
+                {% if todo.tags %}
+                <span class="tags">{{ todo.tags }}</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="todo-actions">
+            <a href="{% url 'edit' todo.pk %}" class="btn-edit">编辑</a>
+            <button type="button" class="btn-delete" onclick="deleteTodo({{ todo.pk }}, this)">删除</button>
+        </div>
+    </li>
+    {% empty %}
+    <li class="empty">还没有任务，开始添加吧 ✨</li>
+    {% endfor %}
+</ul>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+function deleteTodo(pk, btn) {
+    if (!confirm('确定删除？')) return;
+    var item = btn.closest('.todo-item');
+    item.classList.add('removing');
+    fetch('/delete/0/'.replace('0', pk), {
+        method: 'POST',
+        headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+    }).then(function() {
+        setTimeout(function() { location.reload(); }, 250);
+    });
+}
+
+document.getElementById('searchInput').addEventListener('input', function() {
+    var q = this.value.toLowerCase();
+    document.querySelectorAll('.todo-item').forEach(function(item) {
+        var title = item.dataset.title || '';
+        var tags = item.dataset.tags || '';
+        item.style.display = (title.includes(q) || tags.includes(q)) ? '' : 'none';
+    });
+});
+
+document.addEventListener('keydown', function(e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        var titleInput = document.querySelector('.input-title');
+        if (titleInput === document.activeElement) {
+            document.querySelector('.add-form').submit();
+        }
+    }
+});
+
+{% if messages %}
+(function() {
+    var container = document.getElementById('toastContainer');
+    {% for message in messages %}
+    var toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = '{{ message|escapejs }}';
+    container.appendChild(toast);
+    setTimeout(function() { toast.remove(); }, 2200);
+    {% endfor %}
+})();
+{% endif %}
+</script>
+{% endblock %}
